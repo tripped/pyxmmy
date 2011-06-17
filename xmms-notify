@@ -33,6 +33,7 @@ def make_notifier():
     def notify(title, body, piccy):
         note.update(title, body)
         note.set_icon_from_pixbuf(piccy)
+        note.set_timeout(pynotify.EXPIRES_DEFAULT)
         note.show()
 
     return notify
