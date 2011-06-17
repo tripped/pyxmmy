@@ -1,0 +1,36 @@
+#!/usr/bin/python
+
+import xmmsclient
+import os
+
+def xmms_connect(name):
+    xmms = xmmsclient.XMMS(name)
+    xmms.connect(os.getenv('XMMS_PATH'))
+    return xmms
+
+def is_playing(xmms):
+    result = xmms.playback_status()
+    result.wait()
+
+    if result.iserror():
+        return False
+
+    return result.value() == xmmsclient.PLAYBACK_STATUS_PLAY
+
+def pause(xmms):
+    result = xmms.playback_pause()
+    result.wait()
+
+def play(xmms):
+    result = xmms.playback_start()
+    result.wait()
+
+
+if __name__ == '__main__':
+    xmms = xmms_connect('py-toggle-pause')
+    
+    if is_playing(xmms):
+        pause(xmms)
+    else:
+        play(xmms)
+

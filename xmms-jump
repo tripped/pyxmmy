@@ -1,0 +1,20 @@
+#!/usr/bin/python
+
+import xmmsclient
+import sys
+import os
+
+def xmms_connect(name):
+    xmms = xmmsclient.XMMS(name)
+    xmms.connect(os.getenv('XMMS_PATH'))
+    return xmms
+
+if __name__ == '__main__':
+
+    if len(sys.argv) < 2:
+        print ('Usage: xmms-jump <search-text>')
+        sys.exit(1)
+
+    # This is only a placeholder
+    os.system('nyxmms2 jump *{0}*'.format(sys.argv[1]))
+

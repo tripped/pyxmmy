@@ -1,0 +1,169 @@
+#!/usr/bin/python
+
+import xmmsclient
+import pynotify
+import gtk
+import os
+
+#==============================================================================
+# XMMS2 connection
+#==============================================================================
+def xmms_connect(name):
+    '''Returns a connected instance of XMMS.'''
+    xmms = xmmsclient.XMMS(name)
+    xmms.connect(os.getenv('XMMS_PATH'))
+    return xmms
+
+#==============================================================================
+# Magical notifier factory
+#==============================================================================
+def make_notifier():
+    '''Returns a function that can be used to display a pynotify bubble with
+       specified title, body, and icon.'''
+
+    if not pynotify.is_initted():
+        pynotify.init('py-xmms-notify')
+
+    # We create a single Notification object and update it to ensure prompt
+    # notification even in the presence of certain obnoxious notification
+    # daemons that don't allow notes to be closed for ~10 seconds. (I'm
+    # looking at you, notify-osd.)
+    note = pynotify.Notification('Blank')
+
+    def notify(title, body, piccy):
+        note.update(title, body)
+        note.set_icon_from_pixbuf(piccy)
+        note.show()
+
+    return notify
+
+
+#==============================================================================
+# Song representation
+#==============================================================================
+class Song(object):
+    def __init__(self):
+        self.artist = None
+        self.album = None
+        self.title = None
+        self.cover = None
+        self.url = None
+
+#==============================================================================
+# Magical cover art finders 
+#==============================================================================
+def pixbuf(data):
+    loader = gtk.gdk.PixbufLoader()
+    loader.write(data)
+    loader.close()
+    return loader.get_pixbuf()
+
+def xmms_art(xmms, song):
+    '''Returns album art from XMMS library database, if it exists.'''
+    if not song.cover:
+       return None
+    bindata = xmms.bindata_retrieve(song.cover)
+    bindata.wait()
+    return pixbuf(bindata.value())
+
+def local_art(song):
+    '''Attempts to find local cover art for the given song.
+
+       This is done by looking in the folder containing the song for any image
+       file whose name resembles the song's album name. Returns None if no good
+       candidate is found, or if the song is not local (and therefore we can't
+       do a directory listing to look for art files).'''
+
+    from difflib import get_close_matches
+    from urlparse import urlparse
+    from urllib import unquote_plus
+    import re
+
+    url = urlparse(song.url)
+
+    # this only works for local files
+    if url.scheme != 'file':
+        return None
+
+    # Get a list of image files in the song's directory
+    basedir     = os.path.dirname(unquote_plus(url.path))
+    image_exts  = ['png', 'jpg', 'gif', 'bmp', 'svg']
+    imagefiles  = filter(re.compile('|'.join([ext + '$' for ext in image_exts]),
+                    re.IGNORECASE).search, os.listdir(basedir))
+
+    # Look for any that are close to the album title
+    candidates = get_close_matches(song.album, imagefiles, cutoff = 0.6)
+
+    # Secondarily, look for any images called 'folder', 'album', or 'cover'
+    candidates += filter(re.compile('folder|album|cover',
+                re.IGNORECASE).search, imagefiles)
+
+    if len(candidates) == 0:
+        return None
+
+    with open('{0}/{1}'.format(basedir, candidates[0])) as file:
+        return pixbuf(file.read())
+
+def default_art():
+    '''Returns the default cover art pixbuf.'''
+    with open('default.png') as file:
+        return pixbuf(file.read())
+
+
+#==============================================================================
+# Get song info
+#==============================================================================
+def xmms_song(xmms, playback_id):
+    '''Returns song info given XMMS instance and playback id.'''
+
+    result = xmms.medialib_get_info(playback_id.value())
+    result.wait()
+
+    minfo = {} if result.iserror() else result.value()
+
+    def prop(pdict, key):
+        return pdict[key] if key in pdict else None
+    
+    s = Song()
+
+    # Fill out basic song info
+    s.artist = prop(minfo, 'artist') or 'Uknown artist'
+    s.title  = prop(minfo, 'title') or 'Unknown title'
+    s.album  = prop(minfo, 'album') or 'Unknown album'
+    s.cover  = prop(minfo, 'picture_front')
+    s.url    = prop(minfo, 'url')
+
+    # Find cover art, replacing s.cover with a pixbuf
+    s.cover = xmms_art(xmms, s) or local_art(s) or default_art()
+    return s
+
+
+#==============================================================================
+# Song update callback
+#==============================================================================
+def show_song(notifier, xmms, playback_id):
+    song = xmms_song(xmms, playback_id)
+    notifier(song.title,
+            'by {0} from {1}'.format(song.artist, song.album),
+            song.cover)
+
+
+if __name__ == '__main__':
+    try:
+        from functools import partial as bind
+
+        # Create a notifier
+        notifier = make_notifier()
+
+        # Connect to XMMS
+        xmms = xmms_connect('py-xmms-notify')
+
+        # Register song change callback
+        xmms.broadcast_playback_current_id(bind(show_song, notifier, xmms))
+
+        xmms.loop()
+    except KeyboardInterrupt:
+        print ('Bye!')
+    except Exception, detail:
+        print ('py-xmms-notify: error: {0}'.format(detail))
+
