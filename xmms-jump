@@ -4,17 +4,49 @@ import xmmsclient
 import sys
 import os
 
+from PyQt4.QtCore import *
+from PyQt4.QtGui import *
+
 def xmms_connect(name):
     xmms = xmmsclient.XMMS(name)
     xmms.connect(os.getenv('XMMS_PATH'))
     return xmms
 
+class Window(QWidget):
+    def __init__(self):
+        QWidget.__init__(self)
+
+        # Initialize layout
+        layout = QVBoxLayout(self)
+        self.setLayout(layout)
+
+        # Set translucency properties
+        self.setAttribute(Qt.WA_TranslucentBackground, True)
+        self.setWindowFlags(Qt.FramelessWindowHint)
+
+        # Size and center window
+        self.resize(500, 380)
+        screen = QDesktopWidget().screenGeometry()
+        self.move((screen.width()/2) - (self.frameSize().width()/2),
+                  (screen.height()/2) - (self.frameSize().height()/2))
+
+    #
+    # Paint sexy window
+    #
+    def paintEvent(self, event):
+        QWidget.paintEvent(self, event)
+        p = QPainter(self)
+        p.fillRect(event.rect(), Qt.transparent)
+        p.setPen(Qt.NoPen)
+        p.setBrush(QColor(0,0,0))
+        p.setOpacity(0.6)
+        p.setRenderHint(QPainter.Antialiasing)
+        p.drawRoundedRect(self.rect(), 10, 10)
+        p.end()
+
 if __name__ == '__main__':
-
-    if len(sys.argv) < 2:
-        print ('Usage: xmms-jump <search-text>')
-        sys.exit(1)
-
-    # This is only a placeholder
-    os.system('nyxmms2 jump *{0}*'.format(sys.argv[1]))
+    app = QApplication(sys.argv)
+    w = Window()
+    w.show()
+    sys.exit(app.exec_())
 
