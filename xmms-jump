@@ -12,6 +12,42 @@ def xmms_connect(name):
     xmms.connect(os.getenv('XMMS_PATH'))
     return xmms
 
+#==============================================================================
+# Prettyful stylesheet for main window
+#==============================================================================
+stylesheet = '''
+    QWidget:window {
+        border-radius:6px;
+        background-color: rgba(16,16,16,85%);
+    }
+    QLabel {
+        color: rgb(200,200,200);
+    }
+    QLineEdit, QPushButton, QListWidget {
+        background: transparent;
+        color: white;
+        font-size: 16px;
+        border: 1px solid rgb(64,64,64);
+        border-radius: 3px;
+    }
+    QLineEdit {
+        min-height: 2em;
+    }
+    QPushButton {
+        text-decoration: underline;
+        min-height: 2em;
+    }
+    QPushButton:hover {
+        background-color: rgba(64,64,64,80%);
+    }
+    QPushButton:pressed {
+        background-color: rgba(128,128,128,50%);
+    }
+'''
+
+#==============================================================================
+# Main window class
+#==============================================================================
 class Window(QWidget):
     def __init__(self):
         QWidget.__init__(self)
@@ -20,33 +56,82 @@ class Window(QWidget):
         layout = QVBoxLayout(self)
         self.setLayout(layout)
 
-        # Set translucency properties
-        self.setAttribute(Qt.WA_TranslucentBackground, True)
-        self.setWindowFlags(Qt.FramelessWindowHint)
+        # Add search bar with label and line edit box
+        searchbar = QHBoxLayout()
+        layout.addLayout(searchbar)
+        self.edit = QLineEdit()
+        searchbar.addWidget(QLabel("Search:"))
+        searchbar.addWidget(self.edit)
+
+        # Add list pane for search results
+        self.list = QListWidget()
+        layout.addWidget(self.list)
 
         # Size and center window
-        self.resize(500, 380)
+        self.resize(500, 320)
         screen = QDesktopWidget().screenGeometry()
         self.move((screen.width()/2) - (self.frameSize().width()/2),
                   (screen.height()/2) - (self.frameSize().height()/2))
+
+        self.edit.setFocus()
+
+    #
+    # Close the window if the user presses ESC
+    #
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Escape:
+            self.close()
+
+    def closeEvent(self, event):
+        # This is a workaround, since QApplication does not automatically quit
+        # when the only window we opened had the Popup flag
+        QApplication.quit()
 
     #
     # Paint sexy window
     #
     def paintEvent(self, event):
         QWidget.paintEvent(self, event)
+
+        # Paint background according to stylesheet
+        opt = QStyleOption()
+        opt.init(self)
         p = QPainter(self)
-        p.fillRect(event.rect(), Qt.transparent)
-        p.setPen(Qt.NoPen)
-        p.setBrush(QColor(0,0,0))
-        p.setOpacity(0.6)
-        p.setRenderHint(QPainter.Antialiasing)
-        p.drawRoundedRect(self.rect(), 10, 10)
+        self.style().drawPrimitive(QStyle.PE_Widget, opt, p, self)
         p.end()
 
+
+#==============================================================================
+# Application class
+#==============================================================================
+class App(QApplication):
+    def __init__(self, *args):
+        QApplication.__init__(self, *args)
+
+        # Listen for focus changing
+        QObject.connect(self, SIGNAL("focusChanged(QWidget *, QWidget *)"), self.focusChanged)
+
+        # Create main window
+        self.window = Window()
+
+        # Monkey with transparency and frame depending on style options
+        self.setStyleSheet(stylesheet)
+        self.window.setAttribute(Qt.WA_TranslucentBackground, True)
+        self.window.setWindowFlags(Qt.FramelessWindowHint | Qt.Popup)
+
+        self.window.show()
+        self.window.edit.setFocus()
+
+
+    def focusChanged(self, old, new):
+        print "App focus changed to:", new
+        if new == None:
+            self.exit()
+
+
 if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    w = Window()
-    w.show()
+    app = App(sys.argv)
     sys.exit(app.exec_())
+
+    print "Exiting..."
 
