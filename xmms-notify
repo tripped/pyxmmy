@@ -3,6 +3,7 @@
 import xmmsclient
 import pynotify
 import gtk
+import sys
 import os
 
 #==============================================================================
@@ -107,7 +108,7 @@ def local_art(song):
 
 def default_art():
     '''Returns the default cover art pixbuf.'''
-    with open('default.png') as file:
+    with open(sys.path[0] + '/default.png') as file:
         return pixbuf(file.read())
 
 
@@ -143,10 +144,13 @@ def xmms_song(xmms, playback_id):
 # Song update callback
 #==============================================================================
 def show_song(notifier, xmms, playback_id):
-    song = xmms_song(xmms, playback_id)
-    notifier(song.title,
+    try:
+        song = xmms_song(xmms, playback_id)
+        notifier(song.title,
             'by {0} from {1}'.format(song.artist, song.album),
             song.cover)
+    except Exception, detail:
+        print ('xmms-notify error: {0}'.format(detail))
 
 
 if __name__ == '__main__':
