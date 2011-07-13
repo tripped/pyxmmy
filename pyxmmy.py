@@ -28,6 +28,11 @@ class Pyxmmy(object):
         ids.wait()
         return [self.song(n) for n in ids.value()]
 
+    def playlistPos(self):
+        '''Returns current playback index.'''
+        pos = self.xmms.playlist_current_pos()
+        pos.wait()
+        return pos.value
 
     def currentSong(self):
         playback_id = self.xmms.playback_current_id()
@@ -55,7 +60,12 @@ class Pyxmmy(object):
 
         # Get cover art, if any
         cover_hash = prop(minfo, 'picture_front')
-        s.cover = self.art(cover_hash) or find_local_art(s) or get_default_art()
+        try:
+            s.cover = self.art(cover_hash) or \
+                      find_local_art(s) or \
+                      get_default_art()
+        except:
+            s.cover = None
 
         return s
 
