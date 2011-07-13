@@ -29,6 +29,45 @@ stylesheet = '''
         border: 1px solid rgb(64,64,64);
         border-radius: 3px;
     }
+
+    QScrollBar {
+        background: transparent; 
+        min-width: 16px;
+    }
+    QScrollBar::handle {
+        background: transparent;
+        border: 1px solid rgb(64,64,64);
+        border-radius: 3px;
+    }
+    QScrollBar::handle:hover { background: rgba(64,64,64,80%); }
+    QScrollBar::handle:pressed { background: rgba(128,128,128,50%); }
+
+    /* Make the arrow buttons invisible because they're a stupid waste of space */
+    QScrollBar::add-line,
+    QScrollBar::sub-line {
+        background: transparent;
+        height: 0px;
+    }
+    QScrollBar::add-page, QScrollBar::sub-page {
+        background: transparent;
+    }
+
+    QListWidget {
+        font-size: 14px;
+        icon-size: 32px;
+    }
+    QListWidget::icon {
+border: 1px solid red;
+    }
+    QListWidget::item {
+        background: transparent;
+        height: 40px;
+    }
+    QListWidget::item:hover {
+        color: rgb(128,128,128);
+        background-color: rgba(32,32,32,86%);
+    }
+
     QLineEdit {
         min-height: 2em;
     }
@@ -63,6 +102,7 @@ class Window(QWidget):
 
         # Add list pane for search results
         self.list = QListWidget()
+        self.list.setFocusPolicy(Qt.StrongFocus)
         layout.addWidget(self.list)
 
         # Temp: add a close button
@@ -77,10 +117,28 @@ class Window(QWidget):
         self.move((screen.width()/2) - (self.frameSize().width()/2),
                   (screen.height()/2) - (self.frameSize().height()/2))
 
-        # Test
+
+        # Add the first ten songs from the current position to the list
         xmms = Pyxmmy('pyxmmy-jump')
-        song = xmms.currentSong()
-        self.edit.setText(song.title)
+        playlist = xmms.playlist()
+        current = xmms.playlistPos()
+
+        for i in range(current, current + 10):
+            song = xmms.song(playlist[i])
+
+            pixmap = QPixmap()
+            pixmap.loadFromData(song.cover)
+            icon = QIcon()
+            icon.addPixmap(pixmap)
+
+            try:
+                text = QString('{0} - {1}'.format(song.artist, song.title)).toUtf8()
+
+                item = QListWidgetItem(icon, text.data())
+                self.list.addItem(item)
+            except Exception,e:
+                print 'Error on', song.title, ':', e
+
 
 
     def focusOutEvent(self, event):
