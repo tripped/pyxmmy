@@ -26,13 +26,14 @@ class Pyxmmy(object):
         '''Returns the current playlist.'''
         ids = self.xmms.playlist_list_entries()
         ids.wait()
-        return [self.song(n) for n in ids.value()]
+        return ids.value()
+        #return [self.song(n) for n in ids.value()]
 
     def playlistPos(self):
         '''Returns current playback index.'''
         pos = self.xmms.playlist_current_pos()
         pos.wait()
-        return pos.value
+        return pos.value()['position']
 
     def currentSong(self):
         playback_id = self.xmms.playback_current_id()
@@ -60,22 +61,20 @@ class Pyxmmy(object):
 
         # Get cover art, if any
         cover_hash = prop(minfo, 'picture_front')
-        try:
-            s.cover = self.art(cover_hash) or \
-                      find_local_art(s) or \
-                      get_default_art()
-        except:
-            s.cover = None
+        s.cover = self.art(cover_hash,s) or \
+                  find_local_art(s) or \
+                  get_default_art()
 
         return s
 
-    def art(self, hash):
+    def art(self, hash, s):
         '''Gets binary cover image data for given cover hash.'''
-        if not hash:
+        try:
+            bindata = self.xmms.bindata_retrieve(hash)
+            bindata.wait()
+            return bindata.value()
+        except:
             return None
-        bindata = self.xmms.bindata_retrieve(hash)
-        bindata.wait()
-        return bindata.value()
 
 
 def get_default_art():
