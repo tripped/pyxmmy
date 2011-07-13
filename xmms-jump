@@ -7,10 +7,9 @@ import os
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
-def xmms_connect(name):
-    xmms = xmmsclient.XMMS(name)
-    xmms.connect(os.getenv('XMMS_PATH'))
-    return xmms
+from pyxmmy import *
+
+
 
 #==============================================================================
 # Prettyful stylesheet for main window
@@ -34,7 +33,6 @@ stylesheet = '''
         min-height: 2em;
     }
     QPushButton {
-        text-decoration: underline;
         min-height: 2em;
     }
     QPushButton:hover {
@@ -67,13 +65,26 @@ class Window(QWidget):
         self.list = QListWidget()
         layout.addWidget(self.list)
 
+        # Temp: add a close button
+        close = QPushButton('x')
+        close.setFixedWidth(32)
+        QObject.connect(close, SIGNAL('clicked()'), self.close)
+        searchbar.addWidget(close)
+
         # Size and center window
         self.resize(500, 320)
         screen = QDesktopWidget().screenGeometry()
         self.move((screen.width()/2) - (self.frameSize().width()/2),
                   (screen.height()/2) - (self.frameSize().height()/2))
 
-        self.edit.setFocus()
+        # Test
+        xmms = Pyxmmy('pyxmmy-jump')
+        song = xmms.currentSong()
+        self.edit.setText(song.title)
+
+
+    def focusOutEvent(self, event):
+        print "Focus out!"
 
     #
     # Close the window if the user presses ESC
@@ -119,12 +130,11 @@ class App(QApplication):
         self.window.setAttribute(Qt.WA_TranslucentBackground, True)
         self.window.setWindowFlags(Qt.FramelessWindowHint | Qt.Popup)
 
-        self.window.show()
         self.window.edit.setFocus()
-
+        self.window.show()
 
     def focusChanged(self, old, new):
-        print "App focus changed to:", new
+        self.window.activateWindow()
         if new == None:
             self.exit()
 
